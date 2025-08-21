@@ -1,13 +1,16 @@
-name: Build Ticket Grabber
+name: Release Ticket Grabber
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*' # e.g. v1.0, v1.0.1
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  build:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -23,40 +26,41 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build executable
+      - name: Build for Windows
+        if: matrix.os == 'windows-latest'
         run: pyinstaller --noconfirm --onefile --windowed --manifest app.manifest --name "抢票工具_Windows" ticket_grabber.py
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: TicketGrabber-Windows
-          path: dist/抢票工具_Windows.exe
-
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
-
-      - name: Build application
+      - name: Build for macOS
+        if: matrix.os == 'macos-latest'
         run: pyinstaller --noconfirm --onefile --windowed --name "抢票工具_macOS" ticket_grabber.py
 
-      - name: Package .app into a .zip
+      - name: Package macOS .app into a .zip
+        if: matrix.os == 'macos-latest'
         run: zip -r "抢票工具_macOS.zip" "dist/抢票工具_macOS.app"
 
-      - name: Upload artifact
+      - name: Upload Artifacts for Release
         uses: actions/upload-artifact@v4
         with:
-          name: TicketGrabber-macOS
-          path: "抢票工具_macOS.zip"
+          name: ${{ matrix.os }}-build
+          path: |
+            dist/抢票工具_Windows.exe
+            抢票工具_macOS.zip
+          if-no-files-found: ignore # Ignore error if one of the paths doesn't exist
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write # Required to create a release
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/macos-latest-build/*
+            artifacts/windows-latest-build/*
