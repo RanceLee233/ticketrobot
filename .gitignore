@@ -1,0 +1,11 @@
+# Archives
+Window使用抢票V2.zip
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# macOS
+.DS_Store
