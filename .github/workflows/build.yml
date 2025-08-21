@@ -32,20 +32,26 @@ jobs:
 
       - name: Build for macOS
         if: matrix.os == 'macos-latest'
-        run: pyinstaller --noconfirm --onefile --windowed --name "抢票工具_macOS" ticket_grabber.py
+        # Do not use --onefile for macOS GUI apps, it can cause issues with the app not launching correctly.
+        run: pyinstaller --noconfirm --windowed --name "抢票工具_macOS" ticket_grabber.py
 
       - name: Package macOS .app into a .zip
         if: matrix.os == 'macos-latest'
         run: zip -r "抢票工具_macOS.zip" "dist/抢票工具_macOS.app"
 
-      - name: Upload Artifacts for Release
+      - name: Upload Windows Artifact
+        if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-build
-          path: |
-            dist/抢票工具_Windows.exe
-            抢票工具_macOS.zip
-          if-no-files-found: ignore # Ignore error if one of the paths doesn't exist
+          name: windows-build
+          path: dist/抢票工具_Windows.exe
+
+      - name: Upload macOS Artifact
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: 抢票工具_macOS.zip
 
   release:
     runs-on: ubuntu-latest
@@ -62,5 +68,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/macos-latest-build/*
-            artifacts/windows-latest-build/*
+            artifacts/windows-build/*
+            artifacts/macos-build/*
